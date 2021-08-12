@@ -1,0 +1,245 @@
+---
+title: "Aave Analytics & Growth Dashboard"
+runtime: shiny
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+    theme: 
+      version: 4
+      bootswatch: united
+---
+
+```{r setup, include=FALSE}
+bslib::bs_themer()
+
+library(flexdashboard)
+library(tidyverse)
+library(lubridate)
+library(httr)
+
+api_key <- "ckey_ecc8c341204242b1859de8858e6"
+
+thematic::thematic_rmd(font = "auto")
+
+metrics <- c("Deposit", "Withdraw", "FlashLoan", "Borrow", "Repay", "Swap")
+deposits <- lapply(metrics, function(x) read_csv(file.path("data", paste0("aave_", x, ".csv"))) %>% mutate(Event = x))
+
+pruned <- lapply(deposits, function(x) {
+    if (!("user" %in% names(x))) x$user <- x$initiator
+    x %>% select(block_signed_at, user, Event)
+}) %>%
+    bind_rows() %>%
+    arrange(block_signed_at) %>%
+    filter(block_signed_at >= ymd("2020-12-01"))
+
+new_users <- pruned %>%
+    mutate(Date = as_date(block_signed_at)) %>%
+    group_by(user) %>%
+    summarise(Date = min(Date)) %>%
+    arrange(Date) %>%
+    group_by(Date) %>%
+    summarise(Count = n()) %>%
+    mutate(CumeCount = cumsum(Count))
+
+transactions <- pruned %>%
+    mutate(Date = as_date(block_signed_at)) %>%
+    group_by(Date, Event) %>%
+    summarise(Count = n())
+
+token_map <- read_csv("token_map.csv")
+prices <- read_csv("prices.csv")
+```
+
+Users
+=====================================  
+
+Row {data-height=150}
+-----------------------------------------------------------------------
+
+```{r}
+x <- new_users %>% filter(Date %in% (max(Date) - days(c(1, 7, 30))))
+```
+
+### New Users (1 Day)
+
+```{r}
+valueBox(max(new_users$CumeCount) - x$CumeCount[3], caption = "New Users (1 Day)", icon="fa-thumbs-up")
+```
+
+### New Users (7 Day)
+
+```{r}
+valueBox(max(new_users$CumeCount) - x$CumeCount[2], caption = "New Users (7 Day)", icon="fa-thumbs-up")
+```
+
+### New Users (30 Day)
+
+```{r}
+valueBox(max(new_users$CumeCount) - x$CumeCount[1], caption = "New Users (30 Day)", icon="fa-thumbs-up")
+```
+
+Row {data-height=350}
+-----------------------------------------------------------------------
+
+### New Users
+
+```{r}
+renderPlot({
+    ggplot(new_users, aes(x = Date, y = Count)) +
+        geom_line() +
+        scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
+        scale_x_date(date_breaks = "1 months", date_labels = "%b %Y") +
+        labs(title = "Number of New Users over Time")
+})
+```
+
+### Cumulative New Users
+
+```{r}
+renderPlot({
+    ggplot(new_users, aes(x = Date, y = CumeCount)) +
+        geom_line() +
+        scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
+        scale_x_date(date_breaks = "1 months", date_labels = "%b %Y") +
+        labs(title = "Cumulative Number of New Users over Time")
+})
+```
+
+Row {data-height=350}
+-----------------------------------------------------------------------
+
+### Number of Transactions
+
+```{r}
+renderPlot({
+    ggplot(transactions, aes(x = Date, y = Count, fill = Event)) +
+        geom_bar(stat = "identity") +
+        scale_fill_brewer(palette = "Dark2") +
+        scale_x_date(date_breaks = "1 months", date_labels = "%b %Y") +
+        labs(title = "Number of Transactions over Time",
+             subtitle = "Broken down by event")
+})
+```
+
+Volume
+=====================================  
+
+Column {.sidebar}
+-----------------------------------------------------------------------
+
+Select a volume metric
+
+```{r}
+selectInput("metric", "Volume Metric", choices = c("Deposit", "Withdraw", "FlashLoan", "Repay", "Swap", "LiquidationCall"))
+```
+
+```{r}
+x <- reactive({
+    read_csv(file.path("data", paste0("aave_", input$metric, ".csv"))) %>%
+        select(block = block_height, time = block_signed_at, user, amount, contract_address = reserve) %>%
+        left_join(token_map) %>%
+        mutate(amount = amount / 1e18) %>%
+        mutate(Date = as_date(time)) %>%
+        left_join(prices, by = c("token" = "Coin", "Date" = "Date")) %>%
+        filter(!is.na(token), !is.na(Price))
+})
+
+daily_volume <- reactive({
+    x() %>%
+        ungroup() %>%
+        group_by(Date, Token=token) %>%
+        summarise(Amount = sum(amount),
+                  Price = Price[1]) %>%
+        mutate(Price = Price * Amount)
+})
+
+daily_volume_agg <- reactive({
+    daily_volume() %>%
+        group_by(Date) %>%
+        summarise(Price = sum(Price))
+})
+
+x1 <- reactive({
+    daily_volume() %>%
+        filter(Date >= max(Date) - days(1)) %>%
+        ungroup() %>%
+        summarise(Price = sum(Price)) %>%
+        pull(Price)
+})
+
+x2 <- reactive({
+    daily_volume() %>%
+        filter(Date >= max(Date) - weeks(1)) %>%
+        ungroup() %>%
+        summarise(Price = sum(Price)) %>%
+        pull(Price)
+})
+
+x3 <- reactive({
+    daily_volume() %>%
+        filter(Date >= max(Date) - months(1)) %>%
+        ungroup() %>%
+        summarise(Price = sum(Price)) %>%
+        pull(Price)
+})
+```
+
+Row {.tabset .tabset-fade, data-height=150}
+-------------------------------------
+   
+### Deposit Volume (1 Day)
+
+```{r}
+renderValueBox({
+    valueBox(scales::dollar(x1()), caption = paste0(input$metric, " Volume (1 Day)"), icon="fa-thumbs-up")
+})
+```
+
+### Deposit Volume (7 Day)
+
+```{r}
+renderValueBox({
+    valueBox(scales::dollar(x2()), caption = paste0(input$metric, " Volume (7 Day)"), icon="fa-thumbs-up")
+})
+```
+
+### Deposit Volume (30 Day)
+
+```{r}
+renderValueBox({
+    valueBox(scales::dollar(x3()), caption = paste0(input$metric, " Volume (30 Day)"), icon="fa-thumbs-up")
+})
+```
+
+Row 
+-----------------------------------------------------------------------
+
+```{r}
+renderPlot({
+    ggplot(data = daily_volume(), aes(x = Date, y = Price, fill = Token)) +
+              geom_bar(stat = "identity") +
+              scale_y_continuous(breaks = scales::pretty_breaks(n = 10), labels = scales::dollar) +
+              scale_x_date(date_breaks = "1 months", date_labels = "%b %y") +
+              labs(
+                  title = paste0("Aave Daily ", input$metric, " Volume"),
+                  caption = "Data from Covalent"
+              )
+})
+```   
+
+Row 
+-----------------------------------------------------------------------
+
+```{r}
+renderPlot({
+    ggplot(data = daily_volume_agg(), aes(x = Date, y = Price)) +
+              geom_bar(stat = "identity") +
+              scale_y_continuous(breaks = scales::pretty_breaks(n = 10), labels = scales::dollar) +
+              scale_x_date(date_breaks = "1 months", date_labels = "%b %y") +
+              labs(
+                  title = paste0("Aave Daily ", input$metric, " Volume"),
+                  caption = "Data from Covalent"
+              )
+})
+```   
