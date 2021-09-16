@@ -7,20 +7,22 @@ output:
     vertical_layout: fill
     theme: 
       version: 4
-      bootswatch: united
+      bootswatch: spacelab
 ---
 
 ```{r setup, include=FALSE}
-bslib::bs_themer()
+#bslib::bs_themer()
 
 library(flexdashboard)
 library(tidyverse)
 library(lubridate)
 library(httr)
+library(omnitheme)
 
 api_key <- "ckey_ecc8c341204242b1859de8858e6"
 
-thematic::thematic_rmd(font = "auto")
+thematic::thematic_shiny(font = "auto")
+theme_set(theme_bw())
 
 metrics <- c("Deposit", "Withdraw", "FlashLoan", "Borrow", "Repay", "Swap")
 deposits <- lapply(metrics, function(x) read_csv(file.path("data", paste0("aave_", x, ".csv"))) %>% mutate(Event = x))
@@ -47,8 +49,8 @@ transactions <- pruned %>%
     group_by(Date, Event) %>%
     summarise(Count = n())
 
-token_map <- read_csv("token_map.csv")
-prices <- read_csv("prices.csv")
+token_map <- read_csv("data/token_map.csv")
+prices <- read_csv("data/prices.csv")
 ```
 
 Users
@@ -90,7 +92,8 @@ renderPlot({
         geom_line() +
         scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
         scale_x_date(date_breaks = "1 months", date_labels = "%b %Y") +
-        labs(title = "Number of New Users over Time")
+        labs(title = "Number of New Users over Time") +
+        watermark_img("images/logo.png", location = "center", alpha = 0.25, width = 135)
 })
 ```
 
@@ -102,7 +105,8 @@ renderPlot({
         geom_line() +
         scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
         scale_x_date(date_breaks = "1 months", date_labels = "%b %Y") +
-        labs(title = "Cumulative Number of New Users over Time")
+        labs(title = "Cumulative Number of New Users over Time") +
+        watermark_img("images/logo.png", location = "center", alpha = 0.25, width = 135)
 })
 ```
 
@@ -118,7 +122,8 @@ renderPlot({
         scale_fill_brewer(palette = "Dark2") +
         scale_x_date(date_breaks = "1 months", date_labels = "%b %Y") +
         labs(title = "Number of Transactions over Time",
-             subtitle = "Broken down by event")
+             subtitle = "Broken down by event") +
+        watermark_img("images/logo.png", location = "center", alpha = 0.25, width = 135)
 })
 ```
 
@@ -131,7 +136,9 @@ Column {.sidebar}
 Select a volume metric
 
 ```{r}
+h4("Configuration")
 selectInput("metric", "Volume Metric", choices = c("Deposit", "Withdraw", "FlashLoan", "Repay", "Swap", "LiquidationCall"))
+dateRangeInput("date_range", "Date Range", min = as_date(min(pruned$block_signed_at)), start = as_date(min(pruned$block_signed_at)), max = as_date(max(pruned$block_signed_at)), end = as_date(max(pruned$block_signed_at)))
 ```
 
 ```{r}
@@ -142,7 +149,8 @@ x <- reactive({
         mutate(amount = amount / 1e18) %>%
         mutate(Date = as_date(time)) %>%
         left_join(prices, by = c("token" = "Coin", "Date" = "Date")) %>%
-        filter(!is.na(token), !is.na(Price))
+        filter(!is.na(token), !is.na(Price)) %>%
+        filter(time >= input$date_range[1], time <= input$date_range[2])
 })
 
 daily_volume <- reactive({
@@ -224,7 +232,8 @@ renderPlot({
               labs(
                   title = paste0("Aave Daily ", input$metric, " Volume"),
                   caption = "Data from Covalent"
-              )
+              ) +
+              watermark_img("images/logo.png", location = "center", alpha = 0.25, width = 135)
 })
 ```   
 
@@ -240,6 +249,7 @@ renderPlot({
               labs(
                   title = paste0("Aave Daily ", input$metric, " Volume"),
                   caption = "Data from Covalent"
-              )
+              ) +
+              watermark_img("images/logo.png", location = "center", alpha = 0.25, width = 135)
 })
 ```   
