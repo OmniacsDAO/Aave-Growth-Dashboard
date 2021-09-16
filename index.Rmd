@@ -159,7 +159,8 @@ daily_volume <- reactive({
         group_by(Date, Token=token) %>%
         summarise(Amount = sum(amount),
                   Price = Price[1]) %>%
-        mutate(Price = Price * Amount)
+        mutate(Price = Price * Amount) %>%
+        ungroup()
 })
 
 daily_volume_agg <- reactive({
