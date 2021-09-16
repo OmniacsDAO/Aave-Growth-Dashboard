@@ -24,7 +24,7 @@ api_key <- "ckey_ecc8c341204242b1859de8858e6"
 thematic::thematic_shiny(font = "auto")
 theme_set(theme_bw())
 
-metrics <- c("Deposit", "Withdraw", "FlashLoan", "Borrow", "Repay", "Swap")
+metrics <- c("Borrow", "Deposit", "Withdraw", "FlashLoan", "Repay", "Swap", "LiquidationCall")
 deposits <- lapply(metrics, function(x) read_csv(file.path("data", paste0("aave_", x, ".csv"))) %>% mutate(Event = x))
 
 pruned <- lapply(deposits, function(x) {
@@ -137,7 +137,7 @@ Select a volume metric
 
 ```{r}
 h4("Configuration")
-selectInput("metric", "Volume Metric", choices = c("Deposit", "Withdraw", "FlashLoan", "Repay", "Swap", "LiquidationCall"))
+selectInput("metric", "Volume Metric", choices = metrics)
 dateRangeInput("date_range", "Date Range", min = as_date(min(pruned$block_signed_at)), start = as_date(min(pruned$block_signed_at)), max = as_date(max(pruned$block_signed_at)), end = as_date(max(pruned$block_signed_at)))
 ```
 
