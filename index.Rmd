@@ -18,6 +18,7 @@ library(tidyverse)
 library(lubridate)
 library(httr)
 library(omnitheme)
+library(plotly)
 
 api_key <- "ckey_ecc8c341204242b1859de8858e6"
 
@@ -87,26 +88,26 @@ Row {data-height=350}
 ### New Users
 
 ```{r}
-renderPlot({
-    ggplot(new_users, aes(x = Date, y = Count)) +
+renderPlotly({
+    ggplotly(ggplot(new_users, aes(x = Date, y = Count)) +
         geom_line() +
         scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
         scale_x_date(date_breaks = "1 months", date_labels = "%b %Y") +
         labs(title = "Number of New Users over Time") +
-        watermark_img("images/logo.png", location = "center", alpha = 0.25, width = 135)
+        watermark_img("images/logo.png", location = "center", alpha = 0.25, width = 135))
 })
 ```
 
 ### Cumulative New Users
 
 ```{r}
-renderPlot({
-    ggplot(new_users, aes(x = Date, y = CumeCount)) +
+renderPlotly({
+    ggplotly(ggplot(new_users, aes(x = Date, y = CumeCount)) +
         geom_line() +
         scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
         scale_x_date(date_breaks = "1 months", date_labels = "%b %Y") +
         labs(title = "Cumulative Number of New Users over Time") +
-        watermark_img("images/logo.png", location = "center", alpha = 0.25, width = 135)
+        watermark_img("images/logo.png", location = "center", alpha = 0.25, width = 135))
 })
 ```
 
@@ -116,14 +117,14 @@ Row {data-height=350}
 ### Number of Transactions
 
 ```{r}
-renderPlot({
-    ggplot(transactions, aes(x = Date, y = Count, fill = Event)) +
+renderPlotly({
+    ggplotly(ggplot(transactions, aes(x = Date, y = Count, fill = Event)) +
         geom_bar(stat = "identity") +
         scale_fill_brewer(palette = "Dark2") +
         scale_x_date(date_breaks = "1 months", date_labels = "%b %Y") +
         labs(title = "Number of Transactions over Time",
              subtitle = "Broken down by event") +
-        watermark_img("images/logo.png", location = "center", alpha = 0.25, width = 135)
+        watermark_img("images/logo.png", location = "center", alpha = 0.25, width = 135))
 })
 ```
 
@@ -225,8 +226,8 @@ Row
 -----------------------------------------------------------------------
 
 ```{r}
-renderPlot({
-    ggplot(data = daily_volume(), aes(x = Date, y = Price, fill = Token)) +
+renderPlotly({
+    ggplotly(ggplot(data = daily_volume(), aes(x = Date, y = Price, fill = Token)) +
               geom_bar(stat = "identity") +
               scale_y_continuous(breaks = scales::pretty_breaks(n = 10), labels = scales::dollar) +
               scale_x_date(date_breaks = "1 months", date_labels = "%b %y") +
@@ -234,7 +235,7 @@ renderPlot({
                   title = paste0("Aave Daily ", input$metric, " Volume"),
                   caption = "Data from Covalent"
               ) +
-              watermark_img("images/logo.png", location = "center", alpha = 0.25, width = 135)
+              watermark_img("images/logo.png", location = "center", alpha = 0.25, width = 135))
 })
 ```   
 
@@ -242,8 +243,8 @@ Row
 -----------------------------------------------------------------------
 
 ```{r}
-renderPlot({
-    ggplot(data = daily_volume_agg(), aes(x = Date, y = Price)) +
+renderPlotly({
+    ggplotly(ggplot(data = daily_volume_agg(), aes(x = Date, y = Price)) +
               geom_bar(stat = "identity") +
               scale_y_continuous(breaks = scales::pretty_breaks(n = 10), labels = scales::dollar) +
               scale_x_date(date_breaks = "1 months", date_labels = "%b %y") +
@@ -251,6 +252,6 @@ renderPlot({
                   title = paste0("Aave Daily ", input$metric, " Volume"),
                   caption = "Data from Covalent"
               ) +
-              watermark_img("images/logo.png", location = "center", alpha = 0.25, width = 135)
+              watermark_img("images/logo.png", location = "center", alpha = 0.25, width = 135))
 })
 ```   

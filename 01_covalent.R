@@ -45,8 +45,10 @@ decode_topic <- function(topic_hash, topic_name, starting_block = 0, ending_bloc
         decoded_params <- x$decoded$params
         decoded_params <- lapply(decoded_params, function(y) {
             y$tx_hash = x$tx_hash
-            if (class(y$value) == "logical" && !y$value) y$value <- "FALSE"
-            
+            for (z in names(y)) {
+                if (class(y[[z]][1]) == "logical") y[[z]] <- as.character(y[[z]])
+            }
+
             return(y)
         })
         decoded <<- c(decoded, decoded_params)
@@ -91,3 +93,6 @@ decode_topics <- function(topic_df) {
         decode_topic(topic_hash, topic_name)
     }
 }
+
+topic_df <- fetch_topics(aave_lending_pool)
+decode_topics(tail(topic_df, n=10))
